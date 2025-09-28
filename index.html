@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E-Learning - Betamine</title>
+<style>
+body {font-family: Arial; margin:0; padding:0; background:#f0f6fc; color:#03396c;}
+header {background:#00509e; color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center;}
+header h1{margin:0;font-size:20px;}
+header button{background:#e63946; border:none; color:white; padding:6px 12px; border-radius:5px; cursor:pointer;}
+#loginContainer, #dashboard, #quizContainer {max-width:800px; margin:40px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+#loginContainer input {width:100%; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:5px;}
+#loginContainer button {background:#00509e; color:white; padding:10px 15px; border:none; border-radius:5px; cursor:pointer;}
+.grid {display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-top:20px;}
+.card {background:#e6f2ff; border:2px solid #00509e; border-radius:10px; padding:30px; text-align:center; font-size:20px; font-weight:bold; cursor:pointer; transition:0.2s;}
+.card:hover{background:#cce0ff;}
+.question {margin-bottom:15px;}
+.options label {display:block;margin:5px 0;}
+#submitBtn, #backBtn {margin-top:20px; padding:10px 15px; background:#00509e; color:white; border:none; border-radius:5px; cursor:pointer;}
+.correct {color:blue; font-weight:bold;}
+.incorrect {color:red; font-weight:bold;}
+.explanation {font-size:14px; margin-top:5px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>E-Learning - Betamine</h1>
+  <button id="logoutBtn" onclick="logout()" style="display:none;">Logout</button>
+</header>
+
+<div id="loginContainer">
+  <h2>Login dengan Kode 15 Digit</h2>
+  <input type="text" id="loginCode" placeholder="Masukkan NIM">
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="dashboard" style="display:none;">
+  <h2 id="welcomeText"></h2>
+  <div class="grid">
+    <div class="card" onclick="mulaiUjian('cbt')">CBT</div>
+    <div class="card" onclick="mulaiUjian('herdini')">Herdini</div>
+    <div class="card" onclick="mulaiUjian('praktikum')">Praktikum</div>
+    <div class="card" onclick="mulaiUjian('ospe')">OSPE</div>
+  </div>
+</div>
+
+<div id="quizContainer" style="display:none;">
+  <h2 id="judulUjian"></h2>
+  <form id="quiz"></form>
+  <button id="submitBtn" onclick="submitQuiz()">Submit</button>
+  <button id="backBtn" onclick="kembaliDashboard()" style="display:none;">Kembali ke Dashboard</button>
+  <div id="hasil"></div>
+</div>
+
+<script src="login/loginCodes.js"></script>
+<script src="ujian/examCodes.js"></script>
+<script>
+let kodeLogin = null;
+let daftarSoal = [];
+let materiAktif = "";
+
+// ===== LOGIN =====
+function login(){
+  const code = document.getElementById("loginCode").value.trim();
+  if(!validLogins.includes(code)){
+    alert("Kode login salah!");
+    return;
+  }
+  kodeLogin = code;
+  document.getElementById("loginContainer").style.display="none";
+  document.getElementById("dashboard").style.display="block";
+  document.getElementById("logoutBtn").style.display="inline-block";
+  document.getElementById("welcomeText").innerText = "Selamat Datang, " + kodeLogin;
+}
+
+function logout(){
+  kodeLogin=null;
+  document.getElementById("loginContainer").style.display="block";
+  document.getElementById("dashboard").style.display="none";
+  document.getElementById("quizContainer").style.display="none";
+  document.getElementById("logoutBtn").style.display="none";
+  document.getElementById("loginCode").value="";
+}
+
+// ===== MULAI UJIAN =====
+async function mulaiUjian(materi){
+  materiAktif = materi;
+  let status = localStorage.getItem(kodeLogin+"_"+materi);
+
+  if(status){
+    document.getElementById("dashboard").style.display="none";
+    document.getElementById("quizContainer").style.display="block";
+    document.getElementById("judulUjian").innerText = materi.toUpperCase()+" (Pembahasan)";
+    document.getElementById("quiz").innerHTML="";
+    document.getElementById("submitBtn").style.display="none";
+    document.getElementById("backBtn").style.display="inline-block";
+    document.getElementById("hasil").innerHTML = status;
+    return;
+  }
+
+  let kodeUjian = prompt("Masukkan kode ujian untuk "+materi.toUpperCase()+" (bebas format):");
+  if(!kodeUjian || !examCodes[materi] || !examCodes[materi].includes(kodeUjian)){
+    alert("Kode ujian salah / tidak valid."); 
+    return;
+  }
+
+  try {
+    let res = await fetch(`soal/${materi}.json`);
+    daftarSoal = await res.json();
+  } catch (e) {
+    alert("Gagal memuat soal.");
+    return;
+  }
+
+  tampilkanSoal();
+  document.getElementById("dashboard").style.display="none";
+  document.getElementById("quizContainer").style.display="block";
+  document.getElementById("judulUjian").innerText = materi.toUpperCase();
+  document.getElementById("submitBtn").style.display="inline-block";
+  document.getElementById("backBtn").style.display="inline-block";
+}
+
+// ===== TAMPILKAN SOAL =====
+function tampilkanSoal(){
+  const quizForm = document.getElementById("quiz");
+  quizForm.innerHTML = "";
+  daftarSoal.forEach((soal, idx)=>{
+    let div = document.createElement("div");
+    div.className="question";
+    div.innerHTML=`<p>${idx+1}. ${soal.pertanyaan}</p>`;
+    let optDiv = document.createElement("div");
+    optDiv.className="options";
+    soal.pilihan.forEach((opt,i)=>{
+      optDiv.innerHTML+=`<label><input type="radio" name="q${idx}" value="${i}"> ${opt}</label>`;
+    });
+    div.appendChild(optDiv);
+    quizForm.appendChild(div);
+  });
+}
+
+// ===== SUBMIT =====
+function submitQuiz(){
+  let score = 0;
+  let resultHTML = "<h3>Hasil Ujian:</h3>";
+  daftarSoal.forEach((soal, idx)=>{
+    let pilihan = document.querySelector(`input[name="q${idx}"]:checked`);
+    let jawaban = pilihan ? parseInt(pilihan.value) : -1;
+    let benar = soal.jawaban;
+    if(jawaban === benar){
+      score++;
+      resultHTML+=`<p class="correct">${idx+1}. ${soal.pertanyaan}<br>✔ Benar - Jawaban: ${soal.pilihan[benar]}</p>`;
+      if(soal.pembahasan){
+        resultHTML+=`<div class="explanation correct">Pembahasan: ${soal.pembahasan}</div>`;
+      }
+    }else{
+      let jawabanUser = jawaban>=0 ? soal.pilihan[jawaban] : "Tidak menjawab";
+      resultHTML+=`<p class="incorrect">${idx+1}. ${soal.pertanyaan}<br>✘ Jawaban Anda: ${jawabanUser}<br>✔ Jawaban Benar: ${soal.pilihan[benar]}</p>`;
+      if(soal.pembahasan){
+        resultHTML+=`<div class="explanation incorrect">Pembahasan: ${soal.pembahasan}</div>`;
+      }
+    }
+  });
+  resultHTML+=`<h3>Skor: ${score} / ${daftarSoal.length} (max 100)</h3>`;
+
+  localStorage.setItem(kodeLogin+"_"+materiAktif,resultHTML);
+
+  document.getElementById("quiz").innerHTML="";
+  document.getElementById("submitBtn").style.display="none";
+  document.getElementById("judulUjian").innerText = materiAktif.toUpperCase()+" (Pembahasan)";
+  document.getElementById("hasil").innerHTML = resultHTML;
+  document.getElementById("backBtn").style.display="inline-block";
+}
+
+// ===== KEMBALI KE DASHBOARD =====
+function kembaliDashboard(){
+  document.getElementById("quizContainer").style.display="none";
+  document.getElementById("dashboard").style.display="block";
+  document.getElementById("backBtn").style.display="none";
+  document.getElementById("hasil").innerHTML="";
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+[
+  {
+    "pertanyaan": "Vitamin apa yang larut dalam lemak?",
+    "pilihan": ["Vitamin C", "Vitamin B12", "Vitamin D", "Vitamin B1"],
+    "jawaban": 2,
+    "pembahasan": "Vitamin D larut dalam lemak dan disimpan di jaringan adiposa."
+  },
+  {
+    "pertanyaan": "Manakah vitamin yang berperan dalam pembekuan darah?",
+    "pilihan": ["Vitamin K", "Vitamin A", "Vitamin C", "Vitamin D"],
+    "jawaban": 0,
+    "pembahasan": "Vitamin K penting untuk sintesis faktor pembekuan darah."
+  }
+]
