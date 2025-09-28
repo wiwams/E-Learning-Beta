@@ -20,7 +20,7 @@ header button{background:#e63946; border:none; color:white; padding:6px 12px; bo
 #submitBtn, #backBtn {margin-top:20px; padding:10px 15px; background:#00509e; color:white; border:none; border-radius:5px; cursor:pointer;}
 .correct {color:blue; font-weight:bold;}
 .incorrect {color:red; font-weight:bold;}
-.explanation {font-size:14px; margin-top:5px;}
+.explanation {font-size:14px; color:#333; margin-top:5px;}
 </style>
 </head>
 <body>
@@ -31,8 +31,8 @@ header button{background:#e63946; border:none; color:white; padding:6px 12px; bo
 </header>
 
 <div id="loginContainer">
-  <h2>Login dengan Kode 15 Digit</h2>
-  <input type="text" id="loginCode" placeholder="Masukkan NIM">
+  <h2>Login dengan Kode</h2>
+  <input type="text" id="loginCode" placeholder="Masukkan Kode Login">
   <button onclick="login()">Login</button>
 </div>
 
@@ -54,14 +54,26 @@ header button{background:#e63946; border:none; color:white; padding:6px 12px; bo
   <div id="hasil"></div>
 </div>
 
-<script src="login/loginCodes.js"></script>
-<script src="ujian/examCodes.js"></script>
 <script>
 let kodeLogin = null;
 let daftarSoal = [];
 let materiAktif = "";
+let validLogins = [];
+let examCodes = {};
 
-// ===== LOGIN =====
+// Ambil kode login
+fetch("logins.json")
+  .then(r => r.json())
+  .then(data => { validLogins = data.murid || []; })
+  .catch(() => { alert("Gagal memuat kode login!"); });
+
+// Ambil kode ujian
+fetch("codes.json")
+  .then(r => r.json())
+  .then(data => { examCodes = data; })
+  .catch(() => { alert("Gagal memuat kode ujian!"); });
+
+// LOGIN
 function login(){
   const code = document.getElementById("loginCode").value.trim();
   if(!validLogins.includes(code)){
@@ -84,8 +96,11 @@ function logout(){
   document.getElementById("loginCode").value="";
 }
 
-// ===== MULAI UJIAN =====
-async function mulaiUjian(materi){
+// SHUFFLE
+function shuffle(arr){return arr.sort(()=>Math.random()-0.5);}
+
+// MULAI UJIAN
+function mulaiUjian(materi){
   materiAktif = materi;
   let status = localStorage.getItem(kodeLogin+"_"+materi);
 
@@ -100,29 +115,26 @@ async function mulaiUjian(materi){
     return;
   }
 
-  let kodeUjian = prompt("Masukkan kode ujian untuk "+materi.toUpperCase()+" (bebas format):");
+  let kodeUjian = prompt("Masukkan kode ujian untuk "+materi.toUpperCase()+":");
   if(!kodeUjian || !examCodes[materi] || !examCodes[materi].includes(kodeUjian)){
     alert("Kode ujian salah / tidak valid."); 
     return;
   }
 
-  try {
-    let res = await fetch(`soal/${materi}.json`);
-    daftarSoal = await res.json();
-  } catch (e) {
-    alert("Gagal memuat soal.");
-    return;
-  }
-
-  tampilkanSoal();
-  document.getElementById("dashboard").style.display="none";
-  document.getElementById("quizContainer").style.display="block";
-  document.getElementById("judulUjian").innerText = materi.toUpperCase();
-  document.getElementById("submitBtn").style.display="inline-block";
-  document.getElementById("backBtn").style.display="inline-block";
+  fetch(materi+".json")
+    .then(r => r.json())
+    .then(data => {
+      daftarSoal = shuffle(data);
+      tampilkanSoal();
+      document.getElementById("dashboard").style.display="none";
+      document.getElementById("quizContainer").style.display="block";
+      document.getElementById("judulUjian").innerText = materi.toUpperCase();
+      document.getElementById("submitBtn").style.display="inline-block";
+      document.getElementById("backBtn").style.display="none";
+    })
+    .catch(()=>alert("Gagal memuat soal!"));
 }
 
-// ===== TAMPILKAN SOAL =====
 function tampilkanSoal(){
   const quizForm = document.getElementById("quiz");
   quizForm.innerHTML = "";
@@ -140,7 +152,6 @@ function tampilkanSoal(){
   });
 }
 
-// ===== SUBMIT =====
 function submitQuiz(){
   let score = 0;
   let resultHTML = "<h3>Hasil Ujian:</h3>";
@@ -151,15 +162,12 @@ function submitQuiz(){
     if(jawaban === benar){
       score++;
       resultHTML+=`<p class="correct">${idx+1}. ${soal.pertanyaan}<br>✔ Benar - Jawaban: ${soal.pilihan[benar]}</p>`;
-      if(soal.pembahasan){
-        resultHTML+=`<div class="explanation correct">Pembahasan: ${soal.pembahasan}</div>`;
-      }
     }else{
       let jawabanUser = jawaban>=0 ? soal.pilihan[jawaban] : "Tidak menjawab";
       resultHTML+=`<p class="incorrect">${idx+1}. ${soal.pertanyaan}<br>✘ Jawaban Anda: ${jawabanUser}<br>✔ Jawaban Benar: ${soal.pilihan[benar]}</p>`;
-      if(soal.pembahasan){
-        resultHTML+=`<div class="explanation incorrect">Pembahasan: ${soal.pembahasan}</div>`;
-      }
+    }
+    if(soal.pembahasan){
+      resultHTML+=`<div class="explanation">Pembahasan: ${soal.pembahasan}</div>`;
     }
   });
   resultHTML+=`<h3>Skor: ${score} / ${daftarSoal.length} (max 100)</h3>`;
@@ -173,7 +181,6 @@ function submitQuiz(){
   document.getElementById("backBtn").style.display="inline-block";
 }
 
-// ===== KEMBALI KE DASHBOARD =====
 function kembaliDashboard(){
   document.getElementById("quizContainer").style.display="none";
   document.getElementById("dashboard").style.display="block";
